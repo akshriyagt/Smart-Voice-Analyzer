@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+uploads/*
+archive/*
+spam_files/*
+notspam_files/*
+normal_files/*
+!uploads/.gitkeep
+!archive/.gitkeep
+!spam_files/.gitkeep
+!notspam_files/.gitkeep
+!normal_files/.gitkeep
+records.json
+users.json
+.env
+*.pem

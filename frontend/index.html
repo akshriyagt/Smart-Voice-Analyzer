@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>Smart Voice Analyzer</title>
+<link rel="manifest" href="/manifest.json"/>
+<meta name="theme-color" content="#6c63ff"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="VoiceAI"/>
+<style>
+:root {
+  --bg:#0f1117; --surface:#1a1d27; --card:#21253a; --border:#2e3354;
+  --accent:#6c63ff; --accent-light:#8b85ff; --green:#22c55e;
+  --red:#ef4444; --yellow:#f59e0b; --text:#e2e8f0; --muted:#8892b0;
+  --radius:14px; --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow-x:hidden}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* ── AUTH ── */
+#auth-screen{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+.auth-logo{font-size:56px;margin-bottom:8px}
+.auth-title{font-size:26px;font-weight:800;background:linear-gradient(135deg,var(--accent),#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px}
+.auth-sub{color:var(--muted);font-size:14px;margin-bottom:32px;text-align:center}
+.auth-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;width:100%;max-width:380px}
+.auth-tabs{display:flex;gap:4px;margin-bottom:24px;background:var(--bg);border-radius:8px;padding:4px}
+.auth-tab{flex:1;padding:8px;border:none;background:none;color:var(--muted);border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
+.auth-tab.active{background:var(--accent);color:white}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;font-weight:500}
+.field input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px;color:var(--text);font-size:15px;outline:none;transition:.15s}
+.field input:focus{border-color:var(--accent)}
+.lang-select-wrap{margin-bottom:20px}
+.lang-select-wrap label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;font-weight:500}
+.lang-select-wrap select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-size:14px;outline:none}
+.auth-btn{width:100%;padding:13px;background:linear-gradient(135deg,var(--accent),#a855f7);border:none;border-radius:8px;color:white;font-size:16px;font-weight:700;cursor:pointer;transition:.15s}
+.auth-btn:active{opacity:.85}
+.auth-err{color:var(--red);font-size:13px;margin-bottom:12px;text-align:center;display:none}
+
+/* ── HEADER ── */
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 18px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100}
+.logo{width:38px;height:38px;background:linear-gradient(135deg,var(--accent),#a855f7);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.header-text h1{font-size:17px;font-weight:700}
+.header-text p{font-size:11px;color:var(--muted)}
+#status-pill{margin-left:auto;font-size:11px;padding:4px 10px;border-radius:20px;background:#1e293b;border:1px solid var(--border);display:flex;align-items:center;gap:5px;white-space:nowrap}
+#status-dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+#status-dot.ok{background:var(--green)}
+#status-dot.err{background:var(--red)}
+.user-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:5px 10px;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0}
+.user-btn:active{background:var(--border)}
+
+/* ── MAIN ── */
+main{max-width:700px;margin:0 auto;padding:20px 16px 100px}
+
+/* ── UPLOAD ── */
+.upload-area{border:2px dashed var(--border);border-radius:var(--radius);padding:44px 20px;text-align:center;cursor:pointer;transition:.2s;background:var(--surface);position:relative}
+.upload-area:hover,.upload-area.drag{border-color:var(--accent);background:#1a1d2f}
+.upload-area input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;font-size:100px}
+.upload-icon{font-size:40px;margin-bottom:12px}
+.upload-area h2{font-size:17px;margin-bottom:6px}
+.upload-area p{color:var(--muted);font-size:13px}
+.upload-area .hint{margin-top:10px;font-size:12px;color:var(--accent-light)}
+
+#file-list{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+.file-chip{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 13px;display:flex;align-items:center;gap:9px;font-size:13px}
+.file-chip .fname{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-chip .fsize{color:var(--muted);font-size:11px;white-space:nowrap}
+.file-chip .rm{cursor:pointer;color:var(--muted);font-size:16px;padding:2px 6px;border-radius:4px}
+.file-chip .rm:active{color:var(--red)}
+
+#progress-bar-wrap{display:none;margin-top:12px;background:var(--border);border-radius:4px;height:4px;overflow:hidden}
+#progress-bar{height:100%;background:linear-gradient(90deg,var(--accent),#a855f7);width:0%;transition:width .3s}
+
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;transition:.15s}
+.btn-primary{background:linear-gradient(135deg,var(--accent),#a855f7);color:white;width:100%;justify-content:center;margin-top:14px}
+.btn-primary:active{opacity:.85}
+.btn-primary:disabled{opacity:.45;cursor:not-allowed}
+.btn-sm{padding:7px 14px;font-size:12px;border-radius:6px}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:3px;border-bottom:1px solid var(--border);margin-bottom:18px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{padding:10px 16px;background:none;border:none;color:var(--muted);font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:.15s}
+.tab.active{color:var(--accent-light);border-bottom-color:var(--accent)}
+.tab-count{background:var(--border);border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px}
+.tab.active .tab-count{background:var(--accent);color:white}
+
+/* ── RESULTS ── */
+section.results-section{margin-top:32px}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.section-header h2{font-size:16px;font-weight:600}
+#results-grid{display:grid;gap:14px}
+
+.result-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.result-card.spam{border-left:4px solid var(--red)}
+.result-card.not_spam{border-left:4px solid var(--green)}
+.result-card.normal{border-left:4px solid var(--yellow)}
+.result-card.pending-action{border:2px solid var(--accent);box-shadow:0 0 0 3px rgba(108,99,255,.15)}
+
+.card-top{display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.status-badge{padding:4px 11px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+.badge-spam{background:rgba(239,68,68,.15);color:var(--red)}
+.badge-not_spam{background:rgba(34,197,94,.15);color:var(--green)}
+.badge-normal{background:rgba(245,158,11,.15);color:var(--yellow)}
+.card-filename{font-weight:600;font-size:14px;flex:1;word-break:break-all}
+.card-confidence{font-size:11px;color:var(--muted);white-space:nowrap}
+
+.card-body{margin-top:13px;display:grid;gap:7px}
+.card-row{display:flex;gap:8px;font-size:13px}
+.card-label{color:var(--muted);min-width:76px;flex-shrink:0}
+.card-value{color:var(--text)}
+
+.card-footer{margin-top:13px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:11px;color:var(--muted)}
+.action-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase}
+.action-deleted{background:rgba(239,68,68,.1);color:var(--red)}
+.action-archived{background:rgba(34,197,94,.1);color:var(--green)}
+.action-kept{background:rgba(245,158,11,.1);color:var(--yellow)}
+.action-pending{background:rgba(108,99,255,.15);color:var(--accent-light)}
+
+/* ── ACTION BUTTONS ── */
+.action-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.action-btns p{width:100%;font-size:12px;color:var(--muted);margin-bottom:4px}
+.act-btn{flex:1;min-width:80px;padding:9px 8px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:.15s}
+.act-btn:active{transform:scale(.97)}
+.act-btn.delete-btn{border-color:var(--red);color:var(--red)}
+.act-btn.delete-btn:active{background:rgba(239,68,68,.1)}
+.act-btn.keep-btn{border-color:var(--yellow);color:var(--yellow)}
+.act-btn.keep-btn:active{background:rgba(245,158,11,.1)}
+.act-btn.archive-btn{border-color:var(--green);color:var(--green)}
+.act-btn.archive-btn:active{background:rgba(34,197,94,.1)}
+
+/* ── CONFIRM MODAL ── */
+#modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:300;display:none;align-items:flex-end;justify-content:center;padding:0 0 var(--safe-bottom)}
+#modal-overlay.open{display:flex}
+#modal-box{background:var(--surface);border-radius:20px 20px 0 0;padding:28px 24px 32px;width:100%;max-width:480px;animation:slideUp .25s ease}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:none}}
+#modal-box h3{font-size:18px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+#modal-box p{color:var(--muted);font-size:14px;margin-bottom:24px;line-height:1.5}
+.modal-btns{display:flex;gap:10px}
+.modal-btn{flex:1;padding:13px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;transition:.15s}
+.modal-btn:active{transform:scale(.97)}
+#modal-cancel{background:var(--border);color:var(--text)}
+#modal-confirm{background:linear-gradient(135deg,var(--accent),#a855f7);color:white}
+#modal-confirm.danger{background:linear-gradient(135deg,#dc2626,#ef4444)}
+
+/* ── EMPTY STATE ── */
+.empty-state{text-align:center;padding:56px 20px;color:var(--muted)}
+.empty-state p{font-size:14px;margin-top:8px}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:calc(24px + var(--safe-bottom));left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:13px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:400;display:none;white-space:nowrap;max-width:calc(100vw - 40px);overflow:hidden;text-overflow:ellipsis}
+.toast.show{display:block;animation:toastIn .2s ease}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+/* ── LOADER ── */
+.loader{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── PWA BANNER ── */
+#pwa-banner{display:none;background:linear-gradient(135deg,var(--accent),#a855f7);padding:12px 16px;text-align:center;font-size:13px;color:white;cursor:pointer;align-items:center;justify-content:center;gap:10px}
+#pwa-banner.show{display:flex}
+#pwa-banner button{background:white;color:var(--accent);border:none;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer}
+#pwa-banner .close-pwa{background:none;border:none;color:rgba(255,255,255,.7);font-size:18px;cursor:pointer;padding:0 0 0 8px}
+
+@media(min-width:600px){
+  main{padding:24px 24px 60px}
+  .action-btns{flex-wrap:nowrap}
+  #modal-overlay{align-items:center}
+  #modal-box{border-radius:20px}
+}
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen">
+  <div class="auth-logo">🎙️</div>
+  <div class="auth-title">Smart Voice Analyzer</div>
+  <div class="auth-sub">AI-powered call classification — works on all devices</div>
+
+  <div class="auth-box">
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login',this)" id="tab-login">Sign In</button>
+      <button class="auth-tab" onclick="switchAuthTab('register',this)" id="tab-register">Sign Up</button>
+    </div>
+
+    <div class="lang-select-wrap">
+      <label>🌐 Language / भाषा / மொழி</label>
+      <select id="lang-select" onchange="setLang(this.value)">
+        <optgroup label="🇮🇳 Indian Languages">
+          <option value="en">English</option>
+          <option value="hi">हिंदी (Hindi)</option>
+          <option value="ta">தமிழ் (Tamil)</option>
+          <option value="te">తెలుగు (Telugu)</option>
+          <option value="kn">ಕನ್ನಡ (Kannada)</option>
+          <option value="ml">മലയാളം (Malayalam)</option>
+          <option value="mr">मराठी (Marathi)</option>
+          <option value="bn">বাংলা (Bengali)</option>
+          <option value="gu">ગુજરાતી (Gujarati)</option>
+          <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+          <option value="ur">اردو (Urdu)</option>
+          <option value="or">ଓଡ଼ିଆ (Odia)</option>
+          <option value="as">অসমীয়া (Assamese)</option>
+        </optgroup>
+        <optgroup label="🌏 Asian Languages">
+          <option value="zh">中文 (Chinese)</option>
+          <option value="ja">日本語 (Japanese)</option>
+          <option value="ko">한국어 (Korean)</option>
+          <option value="th">ภาษาไทย (Thai)</option>
+          <option value="vi">Tiếng Việt (Vietnamese)</option>
+          <option value="id">Bahasa Indonesia</option>
+          <option value="ms">Bahasa Melayu (Malay)</option>
+          <option value="my">မြန်မာ (Burmese)</option>
+          <option value="km">ខ្មែរ (Khmer)</option>
+          <option value="si">සිංහල (Sinhala)</option>
+          <option value="ne">नेपाली (Nepali)</option>
+        </optgroup>
+        <optgroup label="🌍 Middle East & African">
+          <option value="ar">العربية (Arabic)</option>
+          <option value="fa">فارسی (Persian/Farsi)</option>
+          <option value="tr">Türkçe (Turkish)</option>
+          <option value="he">עברית (Hebrew)</option>
+          <option value="sw">Kiswahili (Swahili)</option>
+          <option value="ha">Hausa</option>
+          <option value="yo">Yoruba</option>
+          <option value="am">አማርኛ (Amharic)</option>
+        </optgroup>
+        <optgroup label="🌎 European Languages">
+          <option value="fr">Français (French)</option>
+          <option value="de">Deutsch (German)</option>
+          <option value="es">Español (Spanish)</option>
+          <option value="pt">Português (Portuguese)</option>
+          <option value="it">Italiano (Italian)</option>
+          <option value="ru">Русский (Russian)</option>
+          <option value="pl">Polski (Polish)</option>
+          <option value="nl">Nederlands (Dutch)</option>
+          <option value="uk">Українська (Ukrainian)</option>
+          <option value="el">Ελληνικά (Greek)</option>
+          <option value="ro">Română (Romanian)</option>
+          <option value="cs">Čeština (Czech)</option>
+          <option value="sv">Svenska (Swedish)</option>
+          <option value="no">Norsk (Norwegian)</option>
+          <option value="fi">Suomi (Finnish)</option>
+          <option value="da">Dansk (Danish)</option>
+          <option value="hu">Magyar (Hungarian)</option>
+          <option value="sk">Slovenčina (Slovak)</option>
+          <option value="bg">Български (Bulgarian)</option>
+          <option value="hr">Hrvatski (Croatian)</option>
+          <option value="sr">Српски (Serbian)</option>
+          <option value="lt">Lietuvių (Lithuanian)</option>
+          <option value="lv">Latviešu (Latvian)</option>
+          <option value="et">Eesti (Estonian)</option>
+          <option value="ca">Català (Catalan)</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div id="auth-err" class="auth-err">❌ Error message</div>
+
+    <div id="register-name" class="field" style="display:none">
+      <label data-i18n="name">Full Name</label>
+      <input type="text" id="inp-name" placeholder="Your name" autocomplete="name"/>
+    </div>
+    <div class="field">
+      <label data-i18n="email">Email Address</label>
+      <input type="email" id="inp-email" placeholder="you@email.com" autocomplete="email"/>
+    </div>
+    <div class="field">
+      <label data-i18n="password">Password</label>
+      <input type="password" id="inp-password" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+
+    <button class="auth-btn" onclick="authSubmit()" id="auth-submit-btn">
+      <span data-i18n="signin">Sign In</span>
+    </button>
+  </div>
+</div>
+
+<!-- PWA INSTALL BANNER -->
+<div id="pwa-banner">
+  📱 <span data-i18n="install_app">Install this app on your phone — works offline!</span>
+  <button onclick="installPWA()" data-i18n="install">Install</button>
+  <button class="close-pwa" onclick="document.getElementById('pwa-banner').classList.remove('show')">✕</button>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">🎙️</div>
+  <div class="header-text">
+    <h1 data-i18n="app_title">Smart Voice Analyzer</h1>
+    <p id="user-greeting">Welcome</p>
+  </div>
+  <div id="status-pill">
+    <span id="status-dot"></span>
+    <span id="status-text">...</span>
+  </div>
+  <button class="user-btn" onclick="signOut()">⬡ <span data-i18n="signout">Sign Out</span></button>
+</header>
+
+<main id="main-app" style="display:none">
+  <!-- Upload -->
+  <!-- Hidden file inputs -->
+  <input type="file" id="file-input" 
+    accept="*/*"
+    multiple style="display:none"/>
+  <input type="file" id="folder-input" webkitdirectory style="display:none"/>
+
+  <!-- Upload area -->
+  <div class="upload-area" id="drop-zone">
+    <div class="upload-icon">🎵</div>
+    <h2>Add Call Recordings</h2>
+    <p style="color:var(--muted);font-size:13px">Select files or entire folder</p>
+  </div>
+
+  <!-- Buttons -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
+    <button onclick="document.getElementById('file-input').click()"
+      style="padding:20px 10px;background:var(--surface);border:2px solid var(--accent);color:var(--accent-light);border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;text-align:center;line-height:1.6">
+      ➕ Add File<br>
+      <span style="font-size:11px;font-weight:400;opacity:.8">Tap multiple times to add more</span>
+    </button>
+    <button onclick="document.getElementById('folder-input').click()"
+      style="padding:20px 10px;background:var(--surface);border:2px solid var(--green);color:var(--green);border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;text-align:center;line-height:1.6">
+      📁 Add Folder<br>
+      <span style="font-size:11px;font-weight:400;opacity:.8">All files at once</span>
+    </button>
+  </div>
+  <p style="text-align:center;font-size:12px;color:var(--muted);margin-top:8px">
+    💡 Tap <b>➕ Add File</b> multiple times to keep adding more files!
+  </p>
+
+  <div id="file-list"></div>
+  <div id="progress-bar-wrap"><div id="progress-bar"></div></div>
+
+  <button class="btn btn-primary" id="analyze-btn" disabled>
+    <span id="btn-text" data-i18n="analyze">🔍 Analyze Recordings</span>
+  </button>
+
+  <!-- Results -->
+  <section class="results-section">
+    <div class="section-header">
+      <h2 data-i18n="results">Analysis Results</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-sm" onclick="clearView()" style="background:var(--surface);border:1px solid var(--border);color:var(--muted);">Clear View</button>
+        <button class="btn btn-sm" onclick="clearAllRecords()" style="background:var(--surface);border:1px solid var(--red);color:var(--red);">🗑️ Delete All</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="filterTab('all',this)">
+        <span data-i18n="all">All</span> <span class="tab-count" id="cnt-all">0</span>
+      </button>
+      <button class="tab" onclick="filterTab('spam',this)">
+        🚫 <span data-i18n="spam">Spam</span> <span class="tab-count" id="cnt-spam">0</span>
+      </button>
+      <button class="tab" onclick="filterTab('not_spam',this)">
+        ✅ <span data-i18n="not_spam">Not Spam</span> <span class="tab-count" id="cnt-not_spam">0</span>
+      </button>
+      <button class="tab" onclick="filterTab('normal',this)">
+        📞 <span data-i18n="normal">Normal</span> <span class="tab-count" id="cnt-normal">0</span>
+      </button>
+      <button class="tab" onclick="filterTab('pending',this)">
+        ⏳ <span data-i18n="pending">Pending</span> <span class="tab-count" id="cnt-pending">0</span>
+      </button>
+    </div>
+
+    <div id="results-grid">
+      <div class="empty-state">
+        <div style="font-size:38px">🎙️</div>
+        <p data-i18n="empty_state">Upload audio recordings and tap Analyze to get started</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- CONFIRM MODAL -->
+<div id="modal-overlay" onclick="closeModal(event)">
+  <div id="modal-box">
+    <h3 id="modal-title">Confirm Action</h3>
+    <p id="modal-desc">Are you sure?</p>
+    <div class="modal-btns">
+      <button class="modal-btn" id="modal-cancel" onclick="closeModal()">✕ <span data-i18n="cancel">Cancel</span></button>
+      <button class="modal-btn" id="modal-confirm" onclick="confirmAction()">✓ <span data-i18n="confirm">Confirm</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── i18n ──────────────────────────────────────────────────────────
+const TRANSLATIONS = {
+  en: {app_title:"Smart Voice Analyzer",signin:"Sign In",signup:"Sign Up",signout:"Sign Out",name:"Full Name",email:"Email Address",password:"Password",drop_audio:"Drop audio recordings here",or_click:"or tap to select files",formats:"MP3, WAV, OGG, M4A, FLAC, AAC — multiple files",analyze:"🔍 Analyze Recordings",results:"Analysis Results",clear_all:"Clear View",all:"All",spam:"Spam",not_spam:"Not Spam",normal:"Normal",pending:"Pending",empty_state:"Upload audio recordings and tap Analyze to get started",cancel:"Cancel",confirm:"Confirm",delete_q:"Delete this recording?",delete_desc:"The file will be permanently removed. This cannot be undone.",keep_q:"Keep this recording?",keep_desc:"The recording will be saved in your Normal folder.",archive_q:"Archive this recording?",archive_desc:"The recording will be moved to your Archive folder for safe storage.",install_app:"Install this app on your phone — works offline!",install:"Install",ask_action:"What do you want to do with this call?"},
+  hi: {app_title:"स्मार्ट वॉइस एनालाइज़र",signin:"साइन इन",signup:"साइन अप",signout:"साइन आउट",name:"पूरा नाम",email:"ईमेल पता",password:"पासवर्ड",drop_audio:"यहाँ ऑडियो रिकॉर्डिंग छोड़ें",or_click:"या फ़ाइलें चुनने के लिए टैप करें",formats:"MP3, WAV, OGG, M4A — एकाधिक फ़ाइलें",analyze:"🔍 विश्लेषण करें",results:"विश्लेषण परिणाम",clear_all:"साफ़ करें",all:"सभी",spam:"स्पैम",not_spam:"स्पैम नहीं",normal:"सामान्य",pending:"लंबित",empty_state:"ऑडियो अपलोड करें और विश्लेषण करें",cancel:"रद्द करें",confirm:"पुष्टि करें",delete_q:"इस रिकॉर्डिंग को हटाएं?",delete_desc:"फ़ाइल स्थायी रूप से हटा दी जाएगी।",keep_q:"इस रिकॉर्डिंग को रखें?",keep_desc:"रिकॉर्डिंग आपके सामान्य फ़ोल्डर में सहेजी जाएगी।",archive_q:"इस रिकॉर्डिंग को संग्रहीत करें?",archive_desc:"रिकॉर्डिंग आर्काइव फ़ोल्डर में ले जाई जाएगी।",install_app:"इस ऐप को अपने फ़ोन पर इंस्टॉल करें!",install:"इंस्टॉल करें",ask_action:"इस कॉल के साथ क्या करना चाहते हैं?"},
+  ta: {app_title:"ஸ்மார்ட் வாய்ஸ் அனலைசர்",signin:"உள்நுழைய",signup:"பதிவு செய்ய",signout:"வெளியேறு",name:"முழு பெயர்",email:"மின்னஞ்சல்",password:"கடவுச்சொல்",drop_audio:"ஒலிப்பதிவுகளை இங்கே போடுங்கள்",or_click:"அல்லது கோப்புகளைத் தேர்ந்தெடுக்க தட்டுங்கள்",formats:"MP3, WAV, OGG, M4A — பல கோப்புகள்",analyze:"🔍 பகுப்பாய்வு செய்",results:"பகுப்பாய்வு முடிவுகள்",clear_all:"அழி",all:"அனைத்தும்",spam:"ஸ்பேம்",not_spam:"ஸ்பேம் இல்லை",normal:"சாதாரண",pending:"நிலுவை",empty_state:"ஆடியோ பதிவேற்றி பகுப்பாய்வு செய்யுங்கள்",cancel:"ரத்து செய்",confirm:"உறுதிப்படுத்து",delete_q:"இந்த பதிவை நீக்கவா?",delete_desc:"கோப்பு நிரந்தரமாக அகற்றப்படும்.",keep_q:"இந்த பதிவை வைக்கவா?",keep_desc:"பதிவு உங்கள் சாதாரண கோப்புறையில் சேமிக்கப்படும்.",archive_q:"இந்த பதிவை காப்பகப்படுத்தவா?",archive_desc:"பதிவு காப்பக கோப்புறைக்கு நகர்த்தப்படும்.",install_app:"இந்த ஆப்பை உங்கள் போனில் நிறுவுங்கள்!",install:"நிறுவு",ask_action:"இந்த அழைப்பில் என்ன செய்ய விரும்புகிறீர்கள்?"},
+  te: {app_title:"స్మార్ట్ వాయిస్ అనలైజర్",signin:"సైన్ ఇన్",signup:"సైన్ అప్",signout:"సైన్ అవుట్",name:"పూర్తి పేరు",email:"ఇమెయిల్",password:"పాస్‌వర్డ్",drop_audio:"ఇక్కడ ఆడియో రికార్డింగ్‌లు వేయండి",or_click:"లేదా ఫైళ్లను ఎంచుకోవడానికి నొక్కండి",formats:"MP3, WAV, OGG, M4A — బహుళ ఫైళ్లు",analyze:"🔍 విశ్లేషించు",results:"విశ్లేషణ ఫలితాలు",clear_all:"తొలగించు",all:"అన్నీ",spam:"స్పామ్",not_spam:"స్పామ్ కాదు",normal:"సాధారణ",pending:"పెండింగ్",empty_state:"ఆడియో అప్‌లోడ్ చేసి విశ్లేషించండి",cancel:"రద్దు",confirm:"నిర్ధారించు",delete_q:"ఈ రికార్డింగ్ తొలగించాలా?",delete_desc:"ఫైల్ శాశ్వతంగా తొలగించబడుతుంది.",keep_q:"ఈ రికార్డింగ్ ఉంచాలా?",keep_desc:"రికార్డింగ్ మీ సాధారణ ఫోల్డర్‌లో సేవ్ అవుతుంది.",archive_q:"ఈ రికార్డింగ్ ఆర్కైవ్ చేయాలా?",archive_desc:"రికార్డింగ్ ఆర్కైవ్ ఫోల్డర్‌కు తరలించబడుతుంది.",install_app:"ఈ యాప్‌ని మీ ఫోన్‌లో ఇన్‌స్టాల్ చేయండి!",install:"ఇన్‌స్టాల్",ask_action:"ఈ కాల్‌తో ఏమి చేయాలనుకుంటున్నారు?"},
+  kn: {app_title:"ಸ್ಮಾರ್ಟ್ ವಾಯ್ಸ್ ಅನಲೈಜರ್",signin:"ಸೈನ್ ಇನ್",signup:"ಸೈನ್ ಅಪ್",signout:"ಸೈನ್ ಔಟ್",name:"ಪೂರ್ಣ ಹೆಸರು",email:"ಇಮೇಲ್",password:"ಪಾಸ್‌ವರ್ಡ್",drop_audio:"ಇಲ್ಲಿ ಆಡಿಯೊ ರೆಕಾರ್ಡಿಂಗ್‌ಗಳನ್ನು ಹಾಕಿ",or_click:"ಅಥವಾ ಫೈಲ್‌ಗಳನ್ನು ಆಯ್ಕೆ ಮಾಡಲು ಟ್ಯಾಪ್ ಮಾಡಿ",formats:"MP3, WAV, OGG, M4A — ಅನೇಕ ಫೈಲ್‌ಗಳು",analyze:"🔍 ವಿಶ್ಲೇಷಿಸಿ",results:"ವಿಶ್ಲೇಷಣೆ ಫಲಿತಾಂಶಗಳು",clear_all:"ತೆರವು",all:"ಎಲ್ಲಾ",spam:"ಸ್ಪ್ಯಾಮ್",not_spam:"ಸ್ಪ್ಯಾಮ್ ಅಲ್ಲ",normal:"ಸಾಮಾನ್ಯ",pending:"ಬಾಕಿ",empty_state:"ಆಡಿಯೊ ಅಪ್‌ಲೋಡ್ ಮಾಡಿ ಮತ್ತು ವಿಶ್ಲೇಷಿಸಿ",cancel:"ರದ್ದು",confirm:"ದೃಢೀಕರಿಸಿ",delete_q:"ಈ ರೆಕಾರ್ಡಿಂಗ್ ಅಳಿಸಬೇಕೇ?",delete_desc:"ಫೈಲ್ ಶಾಶ್ವತವಾಗಿ ಅಳಿಸಲ್ಪಡುತ್ತದೆ.",keep_q:"ಈ ರೆಕಾರ್ಡಿಂಗ್ ಇಟ್ಟುಕೊಳ್ಳಬೇಕೇ?",keep_desc:"ರೆಕಾರ್ಡಿಂಗ್ ನಿಮ್ಮ ಸಾಮಾನ್ಯ ಫೋಲ್ಡರ್‌ನಲ್ಲಿ ಉಳಿಸಲ್ಪಡುತ್ತದೆ.",archive_q:"ಈ ರೆಕಾರ್ಡಿಂಗ್ ಆರ್ಕೈವ್ ಮಾಡಬೇಕೇ?",archive_desc:"ರೆಕಾರ್ಡಿಂಗ್ ಆರ್ಕೈವ್ ಫೋಲ್ಡರ್‌ಗೆ ಸ್ಥಳಾಂತರಿಸಲ್ಪಡುತ್ತದೆ.",install_app:"ಈ ಅಪ್ಲಿಕೇಶನ್ ಅನ್ನು ನಿಮ್ಮ ಫೋನ್‌ನಲ್ಲಿ ಸ್ಥಾಪಿಸಿ!",install:"ಸ್ಥಾಪಿಸಿ",ask_action:"ಈ ಕರೆಯೊಂದಿಗೆ ಏನು ಮಾಡಲು ಬಯಸುತ್ತೀರಿ?"},
+  ml: {app_title:"സ്മാർട്ട് വോയ്‌സ് അനലൈസർ",signin:"സൈൻ ഇൻ",signup:"സൈൻ അപ്പ്",signout:"സൈൻ ഔട്ട്",name:"മുഴുവൻ പേര്",email:"ഇ-മെയിൽ",password:"പാസ്‌വേഡ്",drop_audio:"ഓഡിയോ റെക്കോർഡിംഗുകൾ ഇവിടെ ഇടുക",or_click:"അല്ലെങ്കിൽ ഫയലുകൾ തിരഞ്ഞെടുക്കാൻ ടാപ്പ് ചെയ്യുക",formats:"MP3, WAV, OGG, M4A — ഒന്നിലധികം ഫയലുകൾ",analyze:"🔍 വിശകലനം ചെയ്യുക",results:"വിശകലന ഫലങ്ങൾ",clear_all:"മായ്ക്കുക",all:"എല്ലാം",spam:"സ്പാം",not_spam:"സ്പാം അല്ല",normal:"സാധാരണ",pending:"തീർപ്പ് കല്പിക്കാത്ത",empty_state:"ഓഡിയോ അപ്ലോഡ് ചെയ്ത് വിശകലനം ചെയ്യുക",cancel:"റദ്ദാക്കുക",confirm:"സ്ഥിരീകരിക്കുക",delete_q:"ഈ റെക്കോർഡിംഗ് ഇല്ലാതാക്കണോ?",delete_desc:"ഫയൽ സ്ഥിരമായി നീക്കം ചെയ്യും.",keep_q:"ഈ റെക്കോർഡിംഗ് സൂക്ഷിക്കണോ?",keep_desc:"റെക്കോർഡിംഗ് സാധാരണ ഫോൾഡറിൽ സേവ് ചെയ്യും.",archive_q:"ഈ റെക്കോർഡിംഗ് ആർക്കൈവ് ചെയ്യണോ?",archive_desc:"റെക്കോർഡിംഗ് ആർക്കൈവ് ഫോൾഡറിലേക്ക് മാറ്റും.",install_app:"ഈ ആപ്പ് നിങ്ങളുടെ ഫോണിൽ ഇൻസ്‌റ്റാൾ ചെയ്യൂ!",install:"ഇൻസ്‌റ്റാൾ",ask_action:"ഈ കോളിൽ എന്ത് ചെയ്യണം?"},
+  mr: {app_title:"स्मार्ट व्हॉईस अॅनालायझर",signin:"साइन इन",signup:"साइन अप",signout:"साइन आउट",name:"पूर्ण नाव",email:"ईमेल",password:"पासवर्ड",drop_audio:"येथे ऑडिओ रेकॉर्डिंग टाका",or_click:"किंवा फाइल्स निवडण्यासाठी टॅप करा",formats:"MP3, WAV, OGG, M4A — अनेक फाइल्स",analyze:"🔍 विश्लेषण करा",results:"विश्लेषण परिणाम",clear_all:"साफ करा",all:"सर्व",spam:"स्पॅम",not_spam:"स्पॅम नाही",normal:"सामान्य",pending:"प्रलंबित",empty_state:"ऑडिओ अपलोड करा आणि विश्लेषण करा",cancel:"रद्द करा",confirm:"पुष्टी करा",delete_q:"ही रेकॉर्डिंग हटवायची?",delete_desc:"फाइल कायमची काढली जाईल.",keep_q:"ही रेकॉर्डिंग ठेवायची?",keep_desc:"रेकॉर्डिंग तुमच्या सामान्य फोल्डरमध्ये सेव्ह होईल.",archive_q:"ही रेकॉर्डिंग संग्रहित करायची?",archive_desc:"रेकॉर्डिंग आर्काइव्ह फोल्डरमध्ये हलवली जाईल.",install_app:"हे ऍप तुमच्या फोनवर इंस्टॉल करा!",install:"इंस्टॉल",ask_action:"या कॉलसह काय करायचे?"},
+  bn: {app_title:"স্মার্ট ভয়েস অ্যানালাইজার",signin:"সাইন ইন",signup:"সাইন আপ",signout:"সাইন আউট",name:"পুরো নাম",email:"ইমেইল",password:"পাসওয়ার্ড",drop_audio:"এখানে অডিও রেকর্ডিং ফেলুন",or_click:"বা ফাইল বেছে নিতে ট্যাপ করুন",formats:"MP3, WAV, OGG, M4A — একাধিক ফাইল",analyze:"🔍 বিশ্লেষণ করুন",results:"বিশ্লেষণ ফলাফল",clear_all:"সাফ করুন",all:"সব",spam:"স্প্যাম",not_spam:"স্প্যাম নয়",normal:"স্বাভাবিক",pending:"অপেক্ষমান",empty_state:"অডিও আপলোড করুন এবং বিশ্লেষণ করুন",cancel:"বাতিল",confirm:"নিশ্চিত করুন",delete_q:"এই রেকর্ডিং মুছবেন?",delete_desc:"ফাইলটি স্থায়ীভাবে সরানো হবে।",keep_q:"এই রেকর্ডিং রাখবেন?",keep_desc:"রেকর্ডিং আপনার সাধারণ ফোল্ডারে সংরক্ষিত হবে।",archive_q:"এই রেকর্ডিং আর্কাইভ করবেন?",archive_desc:"রেকর্ডিং আর্কাইভ ফোল্ডারে সরানো হবে।",install_app:"এই অ্যাপটি আপনার ফোনে ইন্সটল করুন!",install:"ইন্সটল",ask_action:"এই কলের সাথে কী করতে চান?"}
+};
+
+let LANG = localStorage.getItem("lang") || "en";
+let T = TRANSLATIONS[LANG];
+
+function t(key) { return T[key] || TRANSLATIONS.en[key] || key; }
+
+function setLang(lang) {
+  LANG = lang;
+  T = TRANSLATIONS[lang];
+  localStorage.setItem("lang", lang);
+  applyTranslations();
+}
+
+function applyTranslations() {
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const key = el.getAttribute("data-i18n");
+    el.textContent = t(key);
+  });
+  document.getElementById("lang-select").value = LANG;
+}
+
+// ── AUTH ──────────────────────────────────────────────────────────
+const API = window.location.hostname === "localhost" ? "http://localhost:8000" : "";
+let authMode = "login";
+let TOKEN = localStorage.getItem("token");
+let USERNAME = localStorage.getItem("username");
+
+function switchAuthTab(mode, btn) {
+  authMode = mode;
+  document.querySelectorAll(".auth-tab").forEach(t => t.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById("register-name").style.display = mode === "register" ? "block" : "none";
+  document.getElementById("auth-submit-btn").querySelector("[data-i18n]").setAttribute("data-i18n", mode === "login" ? "signin" : "signup");
+  applyTranslations();
+  document.getElementById("auth-err").style.display = "none";
+}
+
+async function authSubmit() {
+  const btn = document.getElementById("auth-submit-btn");
+  const err = document.getElementById("auth-err");
+  err.style.display = "none";
+  btn.disabled = true;
+  btn.innerHTML = "<span class='loader'></span>";
+
+  const email = document.getElementById("inp-email").value.trim();
+  const password = document.getElementById("inp-password").value;
+  const name = document.getElementById("inp-name").value.trim() || "User";
+
+  if (!email || !password) {
+    err.textContent = "Please fill in all fields.";
+    err.style.display = "block";
+    btn.disabled = false;
+    btn.innerHTML = `<span data-i18n="${authMode === 'login' ? 'signin' : 'signup'}">${t(authMode === 'login' ? 'signin' : 'signup')}</span>`;
+    return;
+  }
+
+  try {
+    const endpoint = authMode === "login" ? "/auth/login" : "/auth/register";
+    const body = authMode === "login" ? {email, password} : {email, password, name};
+    const r = await fetch(`${API}${endpoint}`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "Error");
+
+    TOKEN = d.token;
+    USERNAME = d.name;
+    localStorage.setItem("token", TOKEN);
+    localStorage.setItem("username", USERNAME);
+    onLoggedIn();
+  } catch(e) {
+    err.textContent = "❌ " + e.message;
+    err.style.display = "block";
+    btn.disabled = false;
+    btn.innerHTML = `<span data-i18n="${authMode === 'login' ? 'signin' : 'signup'}">${t(authMode === 'login' ? 'signin' : 'signup')}</span>`;
+  }
+}
+
+function onLoggedIn() {
+  document.getElementById("auth-screen").style.display = "none";
+  document.getElementById("main-app").style.display = "block";
+  document.getElementById("user-greeting").textContent = "👋 " + USERNAME;
+  checkHealth();
+  loadRecords();
+}
+
+function signOut() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("username");
+  TOKEN = null;
+  location.reload();
+}
+
+// On load
+applyTranslations();
+if (TOKEN) {
+  onLoggedIn();
+}
+
+function apiHeaders() {
+  return {"X-Token": TOKEN};
+}
+
+// ── PWA ───────────────────────────────────────────────────────────
+let deferredPrompt;
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  if (!localStorage.getItem("pwa-dismissed")) {
+    document.getElementById("pwa-banner").classList.add("show");
+  }
+});
+
+async function installPWA() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const {outcome} = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById("pwa-banner").classList.remove("show");
+  localStorage.setItem("pwa-dismissed", "1");
+}
+
+// Register service worker
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
+
+// ── HEALTH ────────────────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const r = await fetch(`${API}/health`);
+    const d = await r.json();
+    const dot = document.getElementById("status-dot");
+    const txt = document.getElementById("status-text");
+    // App works with instant analysis — always show ready
+    dot.className = "ok";
+    txt.textContent = "⚡ Ready";
+  } catch {
+    document.getElementById("status-dot").className = "err";
+    document.getElementById("status-text").textContent = "Server offline";
+  }
+}
+setInterval(checkHealth, 15000);
+
+// Poll for background processing
+async function pollProcessingRecords() {
+  const processing = allRecords.filter(r => r.status === "processing");
+  if (!processing.length) return;
+  for (const rec of processing) {
+    try {
+      const r = await fetch(`${API}/records/${rec.id}/status`, {headers: apiHeaders()});
+      if (!r.ok) continue;
+      const updated = await r.json();
+      const idx = allRecords.findIndex(x => x.id === rec.id);
+      if (idx !== -1) {
+        allRecords[idx] = updated;
+        if (updated.status === "done") showToast(`2705 ${updated.filename} 2192 ${(updated.call_status||"").toUpperCase()} (${updated.confidence})`);
+      }
+    } catch {}
+  }
+  renderResults();
+}
+setInterval(pollProcessingRecords, 4000);
+
+// ── FILE HANDLING ─────────────────────────────────────────────────
+let selectedFiles = [];
+let allRecords = [];
+let currentFilter = "all";
+
+const dropZone = document.getElementById("drop-zone");
+const fileInput = document.getElementById("file-input");
+
+fileInput.addEventListener("change", e => addFiles([...e.target.files]));
+document.getElementById("folder-input").addEventListener("change", e => {
+  const audioFiles = [...e.target.files].filter(f => 
+    f.type.startsWith("audio/") || /\.(mp3|wav|ogg|m4a|flac|aac|webm|mp4|3gp)$/i.test(f.name)
+  );
+  if (!audioFiles.length) { showToast("⚠️ No audio files found in folder"); return; }
+  addFiles(audioFiles);
+  showToast(`📁 Found ${audioFiles.length} audio files in folder!`);
+});
+// Drag and drop (desktop only)
+dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("drag"); });
+dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag"));
+dropZone.addEventListener("drop", e => {
+  e.preventDefault();
+  dropZone.classList.remove("drag");
+  addFiles([...e.dataTransfer.files]);
+});
+
+function addFiles(files) {
+  // Accept ALL audio and video files - no restriction
+  const audio = files.filter(f => 
+    f.type.startsWith("audio/") || 
+    f.type.startsWith("video/") ||
+    /\.(mp3|wav|ogg|m4a|flac|aac|webm|mp4|3gp|amr|opus|wma|aiff|ape|m4r)$/i.test(f.name)
+  );
+  if (!audio.length) { showToast("⚠️ No audio files found"); return; }
+  let added = 0;
+  audio.forEach(f => {
+    if (!selectedFiles.find(x => x.name === f.name && x.size === f.size)) {
+      selectedFiles.push(f);
+      added++;
+    }
+  });
+  showToast(`✅ Added ${added} files! Total: ${selectedFiles.length}`);
+  renderFileList();
+  fileInput.value = "";
+}
+
+function renderFileList() {
+  const list = document.getElementById("file-list");
+  list.innerHTML = selectedFiles.map((f, i) => `
+    <div class="file-chip">
+      <span>🎵</span>
+      <span class="fname">${f.name}</span>
+      <span class="fsize">${formatSize(f.size)}</span>
+      <span class="rm" onclick="removeFile(${i})">✕</span>
+    </div>
+  `).join("");
+  document.getElementById("analyze-btn").disabled = selectedFiles.length === 0;
+}
+
+function removeFile(i) { selectedFiles.splice(i, 1); renderFileList(); }
+function formatSize(b) {
+  if (b < 1024) return b + " B";
+  if (b < 1048576) return (b/1024).toFixed(1) + " KB";
+  return (b/1048576).toFixed(1) + " MB";
+}
+
+// ── ANALYZE ───────────────────────────────────────────────────────
+document.getElementById("analyze-btn").addEventListener("click", analyze);
+
+async function analyze() {
+  if (!selectedFiles.length) return;
+  const btn = document.getElementById("analyze-btn");
+  const btnText = document.getElementById("btn-text");
+  btn.disabled = true;
+  btnText.innerHTML = `<span class="loader"></span> Analyzing ${selectedFiles.length} file(s)...`;
+
+  // Auto clear previous results before new analysis
+  allRecords = [];
+  renderResults();
+
+  const bar = document.getElementById("progress-bar-wrap");
+  const prog = document.getElementById("progress-bar");
+  bar.style.display = "block"; prog.style.width = "10%";
+
+  const form = new FormData();
+  selectedFiles.forEach(f => form.append("files", f));
+
+  try {
+    prog.style.width = "40%";
+    const r = await fetch(`${API}/analyze`, {
+      method: "POST", body: form,
+      headers: apiHeaders()
+    });
+    prog.style.width = "90%";
+    if (!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    prog.style.width = "100%";
+    setTimeout(() => { bar.style.display = "none"; prog.style.width = "0%"; }, 600);
+
+    allRecords = [...data.results];
+    renderResults();
+    selectedFiles = [];
+    renderFileList();
+
+    showToast(`✅ Analyzed ${data.results.length} recording(s) — please review and confirm actions`);
+  } catch(err) {
+    bar.style.display = "none";
+    showToast("❌ Error: " + err.message);
+  }
+  btnText.setAttribute("data-i18n", "analyze");
+  btnText.textContent = t("analyze");
+  btn.disabled = false;
+}
+
+// ── LOAD RECORDS ─────────────────────────────────────────────────
+async function loadRecords() {
+  try {
+    const r = await fetch(`${API}/records`, {headers: apiHeaders()});
+    if (!r.ok) return;
+    const d = await r.json();
+    allRecords = d.records.reverse();
+    renderResults();
+  } catch {}
+}
+
+// ── MODAL / ACTION CONFIRMATION ───────────────────────────────────
+let pendingAction = null; // {recordId, action}
+
+function askAction(recordId, action) {
+  pendingAction = {recordId, action};
+  const modal = document.getElementById("modal-overlay");
+  const title = document.getElementById("modal-title");
+  const desc = document.getElementById("modal-desc");
+  const confirmBtn = document.getElementById("modal-confirm");
+
+  const icons = {delete:"🗑️", keep:"💾", archive:"📁"};
+  const qKey = action + "_q";
+  const dKey = action + "_desc";
+
+  title.textContent = icons[action] + " " + t(qKey);
+  desc.textContent = t(dKey);
+  confirmBtn.className = "modal-btn" + (action === "delete" ? " danger" : "");
+  modal.classList.add("open");
+}
+
+function closeModal(e) {
+  if (e && e.target !== document.getElementById("modal-overlay")) return;
+  document.getElementById("modal-overlay").classList.remove("open");
+  pendingAction = null;
+}
+
+async function confirmAction() {
+  if (!pendingAction) return;
+  document.getElementById("modal-overlay").classList.remove("open");
+  const {recordId, action} = pendingAction;
+  pendingAction = null;
+
+  try {
+    const r = await fetch(`${API}/records/${recordId}/action`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json", ...apiHeaders()},
+      body: JSON.stringify({action})
+    });
+    if (!r.ok) throw new Error(await r.text());
+
+    const icons = {delete:"🗑️", keep:"💾", archive:"📁"};
+    showToast(icons[action] + " " + action.charAt(0).toUpperCase() + action.slice(1) + " confirmed!");
+
+    // Update local record
+    if (action === "delete") {
+      allRecords = allRecords.filter(r => r.id !== recordId);
+    } else {
+      const rec = allRecords.find(r => r.id === recordId);
+      if (rec) rec.action = action === "keep" ? "kept" : action + "d";
+    }
+    renderResults();
+  } catch(err) {
+    showToast("❌ Failed: " + err.message);
+  }
+}
+
+// ── TABS & RENDER ─────────────────────────────────────────────────
+function filterTab(f, el) {
+  currentFilter = f;
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  el.classList.add("active");
+  renderResults();
+}
+
+function updateCounts() {
+  const counts = {all: allRecords.length, spam:0, not_spam:0, normal:0, pending:0};
+  allRecords.forEach(r => {
+    if (r.call_status) counts[r.call_status] = (counts[r.call_status] || 0) + 1;
+    if (r.action === "pending") counts.pending++;
+  });
+  ["all","spam","not_spam","normal","pending"].forEach(k => {
+    const el = document.getElementById("cnt-" + k);
+    if (el) el.textContent = counts[k] || 0;
+  });
+}
+
+function renderResults() {
+  updateCounts();
+  const grid = document.getElementById("results-grid");
+  let records = allRecords;
+  if (currentFilter === "pending") records = allRecords.filter(r => r.action === "pending");
+  else if (currentFilter !== "all") records = allRecords.filter(r => r.call_status === currentFilter);
+
+  if (!records.length) {
+    grid.innerHTML = `<div class="empty-state"><div style="font-size:38px">🔍</div><p>${currentFilter === "all" ? t("empty_state") : "No " + t(currentFilter) + " calls found"}</p></div>`;
+    return;
+  }
+
+  grid.innerHTML = records.map(r => {
+    const isPending = r.action === "pending";
+    const sugIcons = {delete:"🗑️", keep:"💾", archive:"📁"};
+    const actionBtns = isPending ? `
+      <div class="action-btns">
+        <p>💡 ${t("ask_action")} <strong>(AI suggests: ${sugIcons[r.suggested_action] || "💾"} ${r.suggested_action || "keep"})</strong></p>
+        <button class="act-btn delete-btn" onclick="askAction('${r.id}','delete')">🗑️ Delete</button>
+        <button class="act-btn keep-btn" onclick="askAction('${r.id}','keep')">💾 Keep</button>
+        <button class="act-btn archive-btn" onclick="askAction('${r.id}','archive')">📁 Archive</button>
+      </div>` : "";
+
+    const actionLabel = r.action === "pending" ? "⏳ Pending" :
+      r.action === "kept" ? "💾 Kept" :
+      r.action === "archived" ? "📁 Archived" :
+      r.action === "deleted" ? "🗑️ Deleted" : r.action;
+
+    return `
+    <div class="result-card ${r.call_status}${isPending ? ' pending-action' : ''}" id="card-${r.id}">
+      <div class="card-top">
+        <span class="status-badge badge-${r.call_status}">${statusIcon(r.call_status)} ${t(r.call_status) || r.call_status}</span>
+        <span class="card-filename">${escHtml(r.filename)}</span>
+        <span class="card-confidence">${r.confidence}</span>
+      </div>
+      ${actionBtns}
+      <div class="card-footer">
+        <span>${new Date(r.timestamp).toLocaleString()}</span>
+        <span class="action-tag action-${r.action}">${actionLabel}</span>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function statusIcon(s) { return s==="spam"?"🚫":s==="not_spam"?"✅":"📞"; }
+function escHtml(s) { return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+async function clearView() {
+  if (!confirm("Clear all records from view? Files will NOT be deleted from your computer.")) return;
+  allRecords = [];
+  renderResults();
+  showToast("✅ View cleared!");
+}
+
+async function clearAllRecords() {
+  if (!confirm("⚠️ Delete ALL records and files permanently? This cannot be undone!")) return;
+  try {
+    const records = [...allRecords];
+    for (const r of records) {
+      try {
+        await fetch(`${API}/records/${r.id}`, {method:"DELETE", headers: apiHeaders()});
+      } catch {}
+    }
+    allRecords = [];
+    renderResults();
+    showToast("🗑️ All records deleted!");
+  } catch(e) {
+    showToast("❌ Error: " + e.message);
+  }
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "toast show";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = "toast"; }, 3500);
+}
+
+// Enter key on auth
+document.getElementById("inp-password").addEventListener("keydown", e => {
+  if (e.key === "Enter") authSubmit();
+});
+</script>
+</body>
+</html>

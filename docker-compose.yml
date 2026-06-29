@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    container_name: smart_voice_app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./archive:/app/archive
+      - ./spam_files:/app/spam_files
+      - ./notspam_files:/app/notspam_files
+      - ./normal_files:/app/normal_files
+      - ./records.json:/app/records.json
+      - ./users.json:/app/users.json
+    environment:
+      - ENV=production
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: smart_voice_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./aws/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+    restart: unless-stopped
