@@ -41,10 +41,19 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build Docker image
-        run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/smart-voice-analyzer:latest .
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          if [ -z "$DOCKER_USERNAME" ]; then
+            echo "Error: DOCKERHUB_USERNAME secret is not set"
+            exit 1
+          fi
+          docker build -t ${DOCKER_USERNAME}/smart-voice-analyzer:latest .
 
       - name: Push to DockerHub
-        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/smart-voice-analyzer:latest
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: docker push ${DOCKER_USERNAME}/smart-voice-analyzer:latest
 
   deploy:
     name: Deploy to AWS EC2
