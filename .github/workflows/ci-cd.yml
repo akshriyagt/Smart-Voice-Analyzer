@@ -7,9 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  # ─── STEP 1: TEST ───────────────────────────────────────────────
   test:
-    name: ✅ Run Tests
+    name: Run Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -24,38 +23,31 @@ jobs:
         run: pip install -r requirements.txt pytest httpx
 
       - name: Run tests
-        run: |
-          python -c "from backend.main import app; print('✅ App import OK')"
+        run: python -c "from backend.main import app; print('App import OK')"
 
-  # ─── STEP 2: BUILD & PUSH DOCKER IMAGE ─────────────────────────
   build:
-    name: 🐳 Build & Push to DockerHub
+    name: Build and Push to DockerHub
     runs-on: ubuntu-latest
     needs: test
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4- name: Build Docker image
-        run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/smart-voice-analyzer:latest -t ${{ secrets.DOCKERHUB_USERNAME }}/smart-voice-analyzer:${{ github.sha }} .
+        uses: actions/checkout@v4
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build Docker image
-        run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/smart-voice-analyzer:latest .
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/smart-voice-analyzer:${{ github.sha }} .
-      - name: Build Docker image
-        run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/smart-voice-analyzer:latest .
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/smart-voice-analyzer:${{ github.sha }} .
+        run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/smart-voice-analyzer:latest .
 
       - name: Push to DockerHub
-        run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/smart-voice-analyzer:latest
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/smart-voice-analyzer:${{ github.sha }}
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/smart-voice-analyzer:latest
 
-  # ─── STEP 3: DEPLOY TO AWS EC2 ──────────────────────────────────
   deploy:
-    name: 🚀 Deploy to AWS EC2
+    name: Deploy to AWS EC2
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/main'
@@ -71,22 +63,11 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd /opt/smart-voice-analyzer
-
-            # Pull latest image
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/smart-voice-analyzer:latest
-
-            # Update docker-compose image
-            sed -i 's|build: .|image: ${{ secrets.DOCKERHUB_USERNAME }}/smart-voice-analyzer:latest|g' docker-compose.yml
-
-            # Restart containers (zero downtime)
-            docker-compose pull
             docker-compose up -d --force-recreate
             docker system prune -f
-
-            echo "✅ Deployed successfully!"
 
       - name: Health Check
         run: |
           sleep 10
           curl -f http://${{ secrets.EC2_HOST }}/health || exit 1
-          echo "✅ App is live!"
