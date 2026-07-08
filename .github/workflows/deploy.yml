@@ -1,0 +1,23 @@
+name: Deploy to EC2
+
+# Runs automatically every time you push to the main branch
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH into EC2 and redeploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/smart-voice-analyzer
+            git pull origin main
+            source backend/venv/bin/activate
+            pip install -r backend/requirements.txt
+            sudo systemctl restart smart-voice-analyzer

@@ -1,0 +1,15 @@
+[Unit]
+Description=Smart Voice Analyzer backend
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/smart-voice-analyzer/backend
+Environment="PATH=/home/ubuntu/smart-voice-analyzer/backend/venv/bin"
+ExecStart=/home/ubuntu/smart-voice-analyzer/backend/venv/bin/uvicorn app:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
